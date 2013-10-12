@@ -310,45 +310,67 @@ namespace libMesh
 	  const std::vector<Real>& detadz_map = fe.get_fe_map().get_detadz();
 #endif
 
+          // Shape function derivatives in reference space
+	  const std::vector<std::vector<OutputShape> >& dphidxi = fe.get_dphidxi();
+	  const std::vector<std::vector<OutputShape> >& dphideta = fe.get_dphideta();
+
+          // Inverse map second derivatives
+	  const std::vector<std::vector<Real> >& d2xidxyz2 = fe.get_fe_map().get_d2xidxyz2();
+	  const std::vector<std::vector<Real> >& d2etadxyz2 = fe.get_fe_map().get_d2etadxyz2();
+
 	  for (unsigned int i=0; i<d2phi.size(); i++)
 	    for (unsigned int p=0; p<d2phi[i].size(); p++)
 	      {
+                // phi_{x x}
 		d2phi[i][p].slice(0).slice(0) = d2phidx2[i][p] =
-		  d2phidxi2[i][p]*dxidx_map[p]*dxidx_map[p] +
-		  2*d2phidxideta[i][p]*dxidx_map[p]*detadx_map[p] +
-		  d2phideta2[i][p]*detadx_map[p]*detadx_map[p];
+                  d2phidxi2[i][p]*dxidx_map[p]*dxidx_map[p] +       // (xi_x)^2 * phi_{xi xi}
+                  d2phideta2[i][p]*detadx_map[p]*detadx_map[p] +    // (eta_x)^2 * phi_{eta eta}
+                  2*d2phidxideta[i][p]*dxidx_map[p]*detadx_map[p] + // 2 * xi_x * eta_x * phi_{xi eta}
+                  d2xidxyz2[p][0]*dphidxi[i][p] +                   // xi_{x x} * phi_{xi}
+                  d2etadxyz2[p][0]*dphideta[i][p];                  // eta_{x x} * phi_{eta}
 
-		d2phi[i][p].slice(0).slice(1) =
-		  d2phi[i][p].slice(1).slice(0) = d2phidxdy[i][p] =
-		  d2phidxi2[i][p]*dxidx_map[p]*dxidy_map[p] +
-		  d2phidxideta[i][p]*dxidx_map[p]*detady_map[p] +
-		  d2phideta2[i][p]*detadx_map[p]*detady_map[p] +
-		  d2phidxideta[i][p]*detadx_map[p]*dxidy_map[p];
-
-		d2phi[i][p].slice(1).slice(1) = d2phidy2[i][p] =
-		  d2phidxi2[i][p]*dxidy_map[p]*dxidy_map[p] +
-		  2*d2phidxideta[i][p]*dxidy_map[p]*detady_map[p] +
-		  d2phideta2[i][p]*detady_map[p]*detady_map[p];
+                // phi_{x y}
+		d2phi[i][p].slice(0).slice(1) = d2phi[i][p].slice(1).slice(0) = d2phidxdy[i][p] =
+                  d2phidxi2[i][p]*dxidx_map[p]*dxidy_map[p] +                                    // xi_x * xi_y * phi_{xi xi}
+                  d2phideta2[i][p]*detadx_map[p]*detady_map[p] +                                 // eta_x * eta_y * phi_{eta eta}
+                  d2phidxideta[i][p]*(dxidx_map[p]*detady_map[p] + detadx_map[p]*dxidy_map[p]) + // (xi_x*eta_y + eta_x*xi_y) * phi_{xi eta}
+                  d2xidxyz2[p][1]*dphidxi[i][p] +                                                // xi_{x y} * phi_{xi}
+                  d2etadxyz2[p][1]*dphideta[i][p];                                               // eta_{x y} * phi_{eta}
 
 #if LIBMESH_DIM > 2
-		d2phi[i][p].slice(0).slice(2) =
-		  d2phi[i][p].slice(2).slice(0) = d2phidxdz[i][p] =
-		  d2phidxi2[i][p]*dxidx_map[p]*dxidz_map[p] +
-		  d2phidxideta[i][p]*dxidx_map[p]*detadz_map[p] +
-		  d2phideta2[i][p]*detadx_map[p]*detadz_map[p] +
-		  d2phidxideta[i][p]*detadx_map[p]*dxidz_map[p];
+                // phi_{x z}
+		d2phi[i][p].slice(0).slice(2) = d2phi[i][p].slice(2).slice(0) = d2phidxdz[i][p] =
+                  d2phidxi2[i][p]*dxidx_map[p]*dxidz_map[p] +                                    // xi_x * xi_z * phi_{xi xi}
+                  d2phideta2[i][p]*detadx_map[p]*detadz_map[p] +                                 // eta_x * eta_z * phi_{eta eta}
+                  d2phidxideta[i][p]*(dxidx_map[p]*detadz_map[p] + detadx_map[p]*dxidz_map[p]) + // (xi_x*eta_z + eta_x*xi_z) * phi_{xi eta}
+                  d2xidxyz2[p][2]*dphidxi[i][p] +                                                // xi_{x z} * phi_{xi}
+                  d2etadxyz2[p][2]*dphideta[i][p];                                               // eta_{x z} * phi_{eta}
+#endif
 
-		d2phi[i][p].slice(1).slice(2) =
-		  d2phi[i][p].slice(2).slice(1) = d2phidydz[i][p] =
-		  d2phidxi2[i][p]*dxidy_map[p]*dxidz_map[p] +
-		  d2phidxideta[i][p]*dxidy_map[p]*detadz_map[p] +
-		  d2phideta2[i][p]*detady_map[p]*detadz_map[p] +
-		  d2phidxideta[i][p]*detady_map[p]*dxidz_map[p];
+                // phi_{y y}
+		d2phi[i][p].slice(1).slice(1) = d2phidy2[i][p] =
+                  d2phidxi2[i][p]*dxidy_map[p]*dxidy_map[p] +       // (xi_y)^2 * phi_{xi xi}
+                  d2phideta2[i][p]*detady_map[p]*detady_map[p] +    // (eta_y)^2 * phi_{eta eta}
+                  2*d2phidxideta[i][p]*dxidy_map[p]*detady_map[p] + // 2 * xi_y * eta_y * phi_{xi eta}
+                  d2xidxyz2[p][3]*dphidxi[i][p] +                   // xi_{y y} * phi_{xi}
+                  d2etadxyz2[p][3]*dphideta[i][p];                  // eta_{y y} * phi_{eta}
 
+#if LIBMESH_DIM > 2
+                // phi_{y z}
+		d2phi[i][p].slice(1).slice(2) = d2phi[i][p].slice(2).slice(1) = d2phidydz[i][p] =
+                  d2phidxi2[i][p]*dxidy_map[p]*dxidz_map[p] +                                    // xi_y * xi_z * phi_{xi xi}
+                  d2phideta2[i][p]*detady_map[p]*detadz_map[p] +                                 // eta_y * eta_z * phi_{eta eta}
+                  d2phidxideta[i][p]*(dxidy_map[p]*detadz_map[p] + detady_map[p]*dxidz_map[p]) + // (xi_y*eta_z + eta_y*xi_z) * phi_{xi eta}
+                  d2xidxyz2[p][4]*dphidxi[i][p] +                                                // xi_{y z} * phi_{xi}
+                  d2etadxyz2[p][4]*dphideta[i][p];                                               // eta_{y z} * phi_{eta}
+
+                // phi_{z z}
 		d2phi[i][p].slice(2).slice(2) = d2phidz2[i][p] =
-		  d2phidxi2[i][p]*dxidz_map[p]*dxidz_map[p] +
-		  2*d2phidxideta[i][p]*dxidz_map[p]*detadz_map[p] +
-		  d2phideta2[i][p]*detadz_map[p]*detadz_map[p];
+                  d2phidxi2[i][p]*dxidz_map[p]*dxidz_map[p] +       // (xi_z)^2 * phi_{xi xi}
+                  d2phideta2[i][p]*detadz_map[p]*detadz_map[p] +    // (eta_z)^2 * phi_{eta eta}
+                  2*d2phidxideta[i][p]*dxidz_map[p]*detadz_map[p] + // 2 * xi_z * eta_z * phi_{xi eta}
+                  d2xidxyz2[p][5]*dphidxi[i][p] +                   // xi_{z z} * phi_{xi}
+                  d2etadxyz2[p][5]*dphideta[i][p];                  // eta_{z z} * phi_{eta}
 #endif
 	      }
 
